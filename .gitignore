@@ -1,0 +1,17 @@
+.DS_Store
+
+# Go build/test artifacts
+bin/
+dist/
+*.test
+*.out
+coverage.*
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Editor metadata
+.idea/
+.vscode/

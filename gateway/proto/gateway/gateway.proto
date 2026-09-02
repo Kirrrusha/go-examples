@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package gateway;
+
+option go_package = "gateway/pkg/gateway/go;gateway";
+
+import "google/protobuf/empty.proto";
+import "pagination/pagination.proto";
+import "account/account.proto";
+import "auth/auth.proto";
+
+service Gateway {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc GetCurrentUser(google.protobuf.Empty) returns (GetCurrentUserResponse);
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (google.protobuf.Empty);
+  rpc UpdateCurrentUser(UpdateCurrentUserRequest) returns (google.protobuf.Empty);
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  rpc DeleteCurrentUser(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+message RegisterRequest {
+  account.User user = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  account.User user = 1;
+  auth.TokenPair tokens = 2;
+}
+
+message LoginRequest {
+  string login_or_email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  account.User user = 1;
+  auth.TokenPair tokens = 2;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  auth.TokenPair token_pair = 1;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  uint64 user_id = 1;
+  bool is_valid = 2;
+}
+
+message CreateUserRequest {
+  account.CreateUser user = 1;
+}
+
+message GetUserRequest {
+  uint64 user_id = 1;
+}
+
+message GetUserResponse {
+  account.User user = 1;
+}
+
+message GetCurrentUserResponse {
+  account.User user = 1;
+}
+
+message GetUsersRequest {
+  pagination.Pagination pagination = 1;
+}
+
+message GetUsersResponse {
+  repeated account.User users = 1;
+  pagination.Pagination pagination = 2;
+}
+
+message UpdateUserRequest {
+  uint64 user_id = 1;
+  account.UpdateUser user = 2;
+}
+
+message UpdateCurrentUserRequest {
+  account.UpdateUser user = 1;
+}
+
+message DeleteUserRequest {
+  uint64 user_id = 1;
+}
