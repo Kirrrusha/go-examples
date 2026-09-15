@@ -173,15 +173,6 @@ func (r *Repository) createOperation(ctx context.Context, params operationParams
 			entries[i] = mapper.RepoTransactionEntryToTransactionEntry(entryRepo)
 		}
 
-		updateData := mapper.UpdateTransactionToRepoTransaction(model.UpdateTransaction{
-			Status: model.TransactionStatusCompleted,
-		})
-		if err := tx.Model(&repomodel.Transaction{}).Where("id = ?", transaction.ID).Updates(&updateData).Error; err != nil {
-			r.logger.Err(err).Msg("failed to update transaction status")
-			return fmt.Errorf("failed to update transaction status: %w", err)
-		}
-
-		transaction.Status = string(model.TransactionStatusCompleted)
 		result = model.TransactionDetails{
 			Transaction: mapper.RepoTransactionToTransaction(transaction),
 			Entries:     entries,
@@ -193,4 +184,18 @@ func (r *Repository) createOperation(ctx context.Context, params operationParams
 	}
 
 	return result, nil
+}
+
+func (r *Repository) UpdateTransactionStatus(ctx context.Context, transactionID uint64, status model.TransactionStatus) error {
+	res := r.db.WithContext(ctx).
+		Model(&repomodel.Transaction{}).
+		Where("id = ?", transactionID).
+		Updates(map[string]interface{}{"status": string(status), "updated_at": time.Now()})
+	if res.Error != nil {
+		return fmt.Errorf("failed to update transaction status: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("transaction %d not found", transactionID)
+	}
+	return nil
 }

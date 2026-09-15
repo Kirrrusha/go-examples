@@ -6,6 +6,7 @@ dist/
 *.test
 *.out
 coverage.*
+.tmp/
 
 # Local environment
 .env

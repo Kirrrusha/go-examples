@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"account/internal/config"
+	"account/internal/kafka"
 	"account/internal/repository"
 	"account/internal/server"
 	"account/internal/service"
@@ -26,6 +27,7 @@ type App struct {
 	accountService    *service.AccountService
 	accountServer     *server.Server
 	grpcServer        *grpc.Server
+	kafkaClient       *kafka.Kafka
 }
 
 func New(logger *zerolog.Logger, cfg *config.Config) *App {
@@ -113,10 +115,30 @@ func (a *App) getAccountService(ctx context.Context) (*service.AccountService, e
 			return nil, fmt.Errorf("failed to get repository: %w", err)
 		}
 
-		a.accountService = service.New(repo, a.logger)
+		kafkaClient, err := a.getKafkaClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kafka client: %w", err)
+		}
+
+		a.accountService = service.New(repo, kafkaClient, a.logger)
+		if err := kafkaClient.Subscribe(ctx, a.cfg.KafkaTransactionTopic, a.accountService.HandleTransaction); err != nil {
+			return nil, fmt.Errorf("failed to subscribe to transaction requests: %w", err)
+		}
 	}
 
 	return a.accountService, nil
+}
+
+func (a *App) getKafkaClient() (*kafka.Kafka, error) {
+	if a.kafkaClient == nil {
+		if len(a.cfg.KafkaBrokers) == 0 {
+			return nil, fmt.Errorf("at least one kafka broker is required")
+		}
+		producer := kafka.NewProducer(kafka.DefaultProducerConfig(a.cfg.KafkaBrokers), a.logger)
+		a.kafkaClient = kafka.New(producer, a.cfg.KafkaBrokers, a.cfg.KafkaGroupID, a.logger)
+		a.logger.Info().Msg("kafka client created")
+	}
+	return a.kafkaClient, nil
 }
 
 func (a *App) getAccountServer(ctx context.Context) (*server.Server, error) {
@@ -141,6 +163,11 @@ func getGRPCServer(srv *server.Server) *grpc.Server {
 func (a *App) Close() error {
 	if a.grpcServer != nil {
 		a.grpcServer.GracefulStop()
+	}
+	if a.kafkaClient != nil {
+		if err := a.kafkaClient.Close(); err != nil {
+			return fmt.Errorf("failed to close kafka client: %w", err)
+		}
 	}
 
 	return nil

@@ -8,12 +8,15 @@ import (
 )
 
 type Config struct {
-	ServiceName string `env:"SERVICE_NAME" required:"true" envDefault:"account-service"`
-	AppEnv      string `env:"APP_ENV" required:"true" envDefault:"development"`
-	Host        string `env:"GRPC_HOST" required:"true" envDefault:"localhost"`
-	Port        int    `env:"GRPC_PORT" required:"true" envDefault:"50051"`
-	LogLevel    string `env:"LOG_LEVEL" required:"true" envDefault:"info"`
-	DbDsn       string `env:"DB_DSN" required:"true"`
+	ServiceName           string   `env:"SERVICE_NAME" required:"true" envDefault:"account-service"`
+	AppEnv                string   `env:"APP_ENV" required:"true" envDefault:"development"`
+	Host                  string   `env:"GRPC_HOST" required:"true" envDefault:"localhost"`
+	Port                  int      `env:"GRPC_PORT" required:"true" envDefault:"50051"`
+	LogLevel              string   `env:"LOG_LEVEL" required:"true" envDefault:"info"`
+	DbDsn                 string   `env:"DB_DSN" required:"true"`
+	KafkaBrokers          []string `env:"KAFKA_BROKER_HOST" envSeparator:"," required:"true"`
+	KafkaGroupID          string   `env:"KAFKA_CONSUMER_GROUP" required:"true"`
+	KafkaTransactionTopic string   `env:"KAFKA_TRANSACTION_TOPIC" required:"true"`
 }
 
 func Load() (*Config, error) {

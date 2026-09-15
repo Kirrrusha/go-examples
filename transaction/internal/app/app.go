@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 	"transaction/internal/account"
 	"transaction/internal/config"
+	"transaction/internal/kafka"
 	"transaction/internal/repository"
 	"transaction/internal/server"
 	"transaction/internal/service"
@@ -31,6 +32,7 @@ type App struct {
 	transactionService    *service.TransactionService
 	transactionServer     *server.Server
 	grpcServer            *grpc.Server
+	kafkaClient           *kafka.Kafka
 }
 
 func New(logger *zerolog.Logger, cfg *config.Config) *App {
@@ -137,10 +139,30 @@ func (a *App) getTransactionService(ctx context.Context) (*service.TransactionSe
 			return nil, fmt.Errorf("failed to get account service: %w", err)
 		}
 
-		a.transactionService = service.New(repo, accountService, a.logger)
+		kafkaClient, err := a.getKafkaClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kafka client: %w", err)
+		}
+
+		a.transactionService = service.New(repo, accountService, kafkaClient, a.logger)
+		if err := kafkaClient.Subscribe(ctx, a.cfg.KafkaTransactionTopic, a.transactionService.HandleAccountResponse); err != nil {
+			return nil, fmt.Errorf("failed to subscribe to account responses: %w", err)
+		}
 	}
 
 	return a.transactionService, nil
+}
+
+func (a *App) getKafkaClient() (*kafka.Kafka, error) {
+	if a.kafkaClient == nil {
+		if len(a.cfg.KafkaBrokers) == 0 {
+			return nil, fmt.Errorf("at least one kafka broker is required")
+		}
+		producer := kafka.NewProducer(kafka.DefaultProducerConfig(a.cfg.KafkaBrokers), a.logger)
+		a.kafkaClient = kafka.New(producer, a.cfg.KafkaBrokers, a.cfg.KafkaGroupID, a.logger)
+		a.logger.Info().Msg("kafka client created")
+	}
+	return a.kafkaClient, nil
 }
 
 func (a *App) getTransactionServer(ctx context.Context) (*server.Server, error) {
@@ -165,6 +187,11 @@ func getGRPCServer(srv *server.Server) *grpc.Server {
 func (a *App) Close() error {
 	if a.grpcServer != nil {
 		a.grpcServer.GracefulStop()
+	}
+	if a.kafkaClient != nil {
+		if err := a.kafkaClient.Close(); err != nil {
+			return fmt.Errorf("failed to close kafka client: %w", err)
+		}
 	}
 
 	return nil
