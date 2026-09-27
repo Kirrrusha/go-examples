@@ -11,6 +11,7 @@ import (
 	"account/internal/repository"
 	"account/internal/server"
 	"account/internal/service"
+	_ "account/migrations"
 	accountpb "account/pkg/account/go"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
